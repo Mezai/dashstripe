@@ -1,8 +1,35 @@
 <?php
+/**
+* 2007-2016 PrestaShop
+*
+* NOTICE OF LICENSE
+*
+* This source file is subject to the Academic Free License (AFL 3.0)
+* that is bundled with this package in the file LICENSE.txt.
+* It is also available through the world-wide-web at this URL:
+* http://opensource.org/licenses/afl-3.0.php
+* If you did not receive a copy of the license and are unable to
+* obtain it through the world-wide-web, please send an email
+* to license@prestashop.com so we can send you a copy immediately.
+*
+* DISCLAIMER
+*
+* Do not edit or add to this file if you wish to upgrade PrestaShop to newer
+* versions in the future. If you wish to customize PrestaShop for your
+* needs please refer to http://www.prestashop.com for more information.
+*
+*  @author    PrestaShop SA <contact@prestashop.com>
+*  @copyright 2007-2016 PrestaShop SA
+*  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
+*  International Registered Trademark & Property of PrestaShop SA
+*/
 
-include 'vendor/autoload.php';
-use Stripe\Stripe;
-use Stripe\Balance;
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
+require_once(_PS_MODULE_DIR_.'/stripe/vendor/autoload.php');
+
 class DashStripe extends Module {
     public function __construct() {
         $this->name = 'dashstripe';
@@ -10,6 +37,7 @@ class DashStripe extends Module {
         $this->author = 'JET';
         $this->tab = 'dashboard';
         $this->allow_push = true;
+        $this->dependencies = array('stripe');
 
         parent::__construct();
 
@@ -18,7 +46,7 @@ class DashStripe extends Module {
         
         $this->ps_versions_compliancy = array('min' => '1.6', 'max' => _PS_VERSION_);
         
-        Stripe::setApiKey(Configuration::get('DASHSTRIPE_SECRET_KEY'));
+        \Stripe\Stripe::setApiKey(Configuration::get('DASHSTRIPE_SECRET_KEY'));
     }
 
     /**
@@ -40,17 +68,24 @@ class DashStripe extends Module {
     }   
 
     private function getPendingBalance() {
-        $response = Balance::retrieve();
-
-        return ($response->pending[0]['amount'] / 100).' '.$response->pending[0]['currency'];
+        $response = \Stripe\Balance::retrieve();
+        foreach ($response->pending as $key => $value) {
+           if ($value['currency'] === trim(Tools::strtolower(Configuration::get('DASHSTRIPE_CURRENCY')))) {
+                return ($value['amount'] / 100).' '.$value['currency'];
+           }
+        }    
     } 
     /**
      * getStripeBalance
      * @return string balance and currency 
      */
     private function getAvailableBalance() {
-        $response = Balance::retrieve();
-        return ($response->available[0]['amount'] / 100).' '.$response->available[0]['currency']; 
+        $response = \Stripe\Balance::retrieve();
+        foreach ($response->available as $key => $value) {
+           if ($value['currency'] === trim(Tools::strtolower(Configuration::get('DASHSTRIPE_CURRENCY')))) {
+                return ($value['amount'] / 100).' '.$value['currency'];
+           }
+        }        
     }    
     public function renderConfigForm() {
         $fields_form = array(
@@ -74,6 +109,12 @@ class DashStripe extends Module {
             'type' => 'text',
 
         );
+        $fields_form['form']['input'][] = array(
+            'label' => $this->l('Stripe currency'),
+            'hint' => $this->l('Please select currency, for example: gbp'),
+            'name' => 'DASHSTRIPE_CURRENCY',
+            'type' => 'text',
+        );    
         
 
         $helper = new HelperForm();
@@ -97,6 +138,8 @@ class DashStripe extends Module {
     public function getConfigFieldsValues() {
         return array(
             'DASHSTRIPE_SECRET_KEY' => Tools::getValue('DASHSTRIPE_SECRET_KEY', Configuration::get('DASHSTRIPE_SECRET_KEY')),
+            'DASHSTRIPE_CURRENCY' => Tools::getValue('DASHSTRIPE_CURRENCY',
+                Configuration::get('DASHSTRIPE_CURRENCY')),
             'DASHSTRIPE_TEST_MODE' => Tools::getValue('DASHSTRIPE_TEST_MODE', Configuration::get('DASHSTRIPE_TEST_MODE')),
         );
     }
