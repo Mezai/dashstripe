@@ -38,7 +38,7 @@ class DashStripe extends Module {
         $this->tab = 'dashboard';
         $this->allow_push = true;
         $this->dependencies = array('stripe');
-
+        $this->module_key = '2b992ae52c5f3bf2ab0c77fa42c8de85';
         parent::__construct();
 
         $this->displayName = $this->l('Stripe Dashboard Balance');
